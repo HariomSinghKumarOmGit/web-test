@@ -398,6 +398,14 @@ const server = http.createServer(async (req, res) => {
   const isImageOrMedia = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.woff', '.woff2'].includes(ext);
 
   if (isImageOrMedia) {
+    if (process.env.SERVE_FROM_SUPABASE_STORAGE === 'true') {
+      const remoteKey = cleanPath.replace(/^\/+/, '');
+      const supabaseCdnUrl = `${SUPABASE_URL}/storage/v1/object/public/walkaroo-assets/${remoteKey}`;
+      res.writeHead(302, { 'Location': supabaseCdnUrl });
+      res.end();
+      return;
+    }
+
     const basename = path.basename(cleanPath);
     const resolvedPath = resolveSmartAsset(basename, parsedUrl.searchParams);
     if (resolvedPath && fs.existsSync(resolvedPath)) {

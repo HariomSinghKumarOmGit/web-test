@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "node server.js",
     "extract-data": "python3 scripts/extract_data.py && python3 scripts/generate_sql.py",
-    "upload-supabase": "node scripts/upload_to_supabase.js"
+    "upload-supabase": "node scripts/upload_to_supabase.js",
+    "upload-images": "node scripts/upload_images_to_supabase.js",
+    "upload-images-preview": "node scripts/upload_images_to_supabase.js --preview"
   },
   "keywords": [
     "walkaroo",

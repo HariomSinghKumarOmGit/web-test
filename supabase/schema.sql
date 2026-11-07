@@ -179,3 +179,32 @@ DROP POLICY IF EXISTS "Public can view reviews" ON public.reviews;
 CREATE POLICY "Public can view reviews" ON public.reviews FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Public can submit reviews" ON public.reviews;
 CREATE POLICY "Public can submit reviews" ON public.reviews FOR INSERT WITH CHECK (true);
+
+-- ====================================================================
+-- 11. Supabase Storage Setup: 'walkaroo-assets'
+-- ====================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'walkaroo-assets',
+    'walkaroo-assets',
+    true,
+    52428800, -- 50 MB
+    ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
+)
+ON CONFLICT (id) DO UPDATE 
+SET public = true,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Public can view walkaroo assets" ON storage.objects;
+CREATE POLICY "Public can view walkaroo assets" ON storage.objects
+    FOR SELECT USING (bucket_id = 'walkaroo-assets');
+
+DROP POLICY IF EXISTS "Public can upload walkaroo assets" ON storage.objects;
+CREATE POLICY "Public can upload walkaroo assets" ON storage.objects
+    FOR INSERT WITH CHECK (bucket_id = 'walkaroo-assets');
+
+DROP POLICY IF EXISTS "Public can update walkaroo assets" ON storage.objects;
+CREATE POLICY "Public can update walkaroo assets" ON storage.objects
+    FOR UPDATE USING (bucket_id = 'walkaroo-assets');
+
