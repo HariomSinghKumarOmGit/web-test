@@ -1,0 +1,57 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/www.walkaroo.in/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/_external/*"
+  to = "/_external/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/cdn/*"
+  to = "/www.walkaroo.in/cdn/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/checkouts/*"
+  to = "/www.walkaroo.in/checkouts/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/collections/*"
+  to = "/www.walkaroo.in/collections/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/products/*"
+  to = "/www.walkaroo.in/products/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/cart"
+  to = "/www.walkaroo.in/cart.html"
+  status = 200
+
+[[redirects]]
+  from = "/women"
+  to = "/www.walkaroo.in/women.html"
+  status = 200
+
+[[redirects]]
+  from = "/kids"
+  to = "/www.walkaroo.in/kids.html"
+  status = 200
+
+[[redirects]]
+  from = "/search"
+  to = "/www.walkaroo.in/search.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/www.walkaroo.in/:splat"
+  status = 200

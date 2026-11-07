@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/www.walkaroo.in/index.html" },
+    { "source": "/_external/(.*)", "destination": "/_external/$1" },
+    { "source": "/cdn/(.*)", "destination": "/www.walkaroo.in/cdn/$1" },
+    { "source": "/checkouts/(.*)", "destination": "/www.walkaroo.in/checkouts/$1" },
+    { "source": "/collections/(.*)", "destination": "/www.walkaroo.in/collections/$1" },
+    { "source": "/products/(.*)", "destination": "/www.walkaroo.in/products/$1" },
+    { "source": "/blogs/(.*)", "destination": "/www.walkaroo.in/blogs/$1" },
+    { "source": "/pages/(.*)", "destination": "/www.walkaroo.in/pages/$1" },
+    { "source": "/policies/(.*)", "destination": "/www.walkaroo.in/policies/$1" },
+    { "source": "/cart", "destination": "/www.walkaroo.in/cart.html" },
+    { "source": "/women", "destination": "/www.walkaroo.in/women.html" },
+    { "source": "/kids", "destination": "/www.walkaroo.in/kids.html" },
+    { "source": "/returns", "destination": "/www.walkaroo.in/returns.html" },
+    { "source": "/search", "destination": "/www.walkaroo.in/search.html" },
+    { "source": "/track-order", "destination": "/www.walkaroo.in/track-order.html" },
+    { "source": "/(.*)", "destination": "/www.walkaroo.in/$1" }
+  ]
+}
