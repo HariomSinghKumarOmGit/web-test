@@ -108,14 +108,14 @@ async function uploadFile(filePath, remoteKey, retries = 2) {
 }
 
 async function ensureBucket() {
-  // Test if bucket exists
-  const { data: bData, error: bErr } = await supabase.storage.getBucket(BUCKET_NAME);
-  if (!bErr && bData) {
+  // Test if bucket is accessible
+  const { data: listData, error: listErr } = await supabase.storage.from(BUCKET_NAME).list('', { limit: 1 });
+  if (!listErr) {
     return { ok: true };
   }
 
-  // If bucket not found, try to create it
-  console.log(`Bucket '${BUCKET_NAME}' does not exist yet in project '${PROJECT_REF}'. Attempting creation...`);
+  // If error, attempt creation if service role or admin
+  console.log(`Bucket '${BUCKET_NAME}' check returned:`, listErr.message);
   const { data: cData, error: cErr } = await supabase.storage.createBucket(BUCKET_NAME, {
     public: true,
     fileSizeLimit: 52428800
@@ -125,14 +125,14 @@ async function ensureBucket() {
     console.log(`✅ Bucket '${BUCKET_NAME}' created successfully!`);
     return { ok: true };
   } else {
-    return { ok: false, error: cErr.message || (bErr && bErr.message) };
+    return { ok: false, error: cErr.message || listErr.message };
   }
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const homeOnly = args.includes('--home-preview') || args.includes('--home-only') || args.includes('--preview');
-  const concurrency = 6;
+  const concurrency = 10;
 
   console.log('='.repeat(68));
   console.log(`🖼️   Walkaroo Supabase Storage Image Sync Tool`);
