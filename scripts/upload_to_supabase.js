@@ -14,8 +14,8 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '..', 'supabase', 'data');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://ofgaqwoslqeaxwhpcjqs.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://zalicyoqqrfdhcsfhpau.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_FRs_pS0TJUWAaJl7FjOE-w_2Lv8ob66';
 
 console.log('Connecting to Supabase:', supabaseUrl);
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -113,7 +113,7 @@ async function main() {
     console.log('PostgREST cannot create tables automatically.');
     console.log('To initialize the tables:');
     console.log('1. Open your Supabase Dashboard:');
-    console.log('   https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs/sql/new');
+    console.log('   https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau/sql/new');
     console.log('2. Copy & paste the contents of `supabase/schema.sql` (or `supabase/seed.sql`)');
     console.log('3. Click "RUN"');
     console.log('4. Then re-run this script: npm run upload-supabase\n');

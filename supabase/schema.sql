@@ -1,6 +1,6 @@
 -- ====================================================================
 -- Walkaroo E-Commerce Supabase Database Schema
--- Project: https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs
+-- Project: https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau
 -- Generated: 2026-11-07
 -- ====================================================================
 

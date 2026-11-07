@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Walkaroo Image Uploader to Supabase Storage ('walkaroo-assets')
- * Supports uploading priority preview images first, or syncing all catalog images
+ * Walkaroo Supabase Image Uploader to 'walkaroo-assets'
+ * - Prioritizes Home Page images first so the homepage is ready immediately
+ * - Syncs all catalog, collection, and product images into the bucket
+ * - Handles auto bucket creation if service_role key is present
+ * - Provides interactive guidance if storage RLS needs running
  */
 import fs from 'fs';
 import path from 'path';
@@ -16,9 +19,10 @@ const rootDir = path.join(__dirname, '..');
 const walkarooDir = path.join(rootDir, 'www.walkaroo.in');
 const externalDir = path.join(rootDir, '_external');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ofgaqwoslqeaxwhpcjqs.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zalicyoqqrfdhcsfhpau.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_FRs_pS0TJUWAaJl7FjOE-w_2Lv8ob66';
 const BUCKET_NAME = 'walkaroo-assets';
+const PROJECT_REF = 'zalicyoqqrfdhcsfhpau';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -28,7 +32,8 @@ const mimeTypes = {
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.gif': 'image/gif',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon'
 };
 
 function getFilesRecursively(dir, filterExts) {
@@ -57,9 +62,9 @@ function getFilesRecursively(dir, filterExts) {
 // Extract images referenced in the home page (for priority preview upload)
 function getHomePageImages() {
   const homeHtmlPath = path.join(walkarooDir, 'index.html');
-  if (!fs.existsSync(homeHtmlPath)) return [];
+  if (!fs.existsSync(homeHtmlPath)) return new Set();
   const content = fs.readFileSync(homeHtmlPath, 'utf8');
-  const matches = content.match(/[\/a-zA-Z0-9_\-\.]+\.(?:jpg|jpeg|png|webp|gif|svg)/gi) || [];
+  const matches = content.match(/[\/a-zA-Z0-9_\-\.]+\.(?:jpg|jpeg|png|webp|gif|svg|ico)/gi) || [];
   const uniqueNames = new Set();
   for (const m of matches) {
     const base = path.basename(m);
@@ -70,115 +75,162 @@ function getHomePageImages() {
   return uniqueNames;
 }
 
-async function uploadFile(filePath, remoteKey) {
-  try {
-    const fileBuffer = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
+async function uploadFile(filePath, remoteKey, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const fileBuffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
 
-    const { data, error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(remoteKey, fileBuffer, {
-        contentType,
-        upsert: true
-      });
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(remoteKey, fileBuffer, {
+          contentType,
+          upsert: true
+        });
 
-    if (error) {
-      return { success: false, error: error.message };
+      if (error) {
+        if (attempt < retries && (error.message.includes('fetch failed') || error.status === 429)) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        return { success: false, error: error.message };
+      }
+      return { success: true, key: remoteKey };
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      return { success: false, error: err.message };
     }
-    return { success: true, key: remoteKey };
-  } catch (err) {
-    return { success: false, error: err.message };
+  }
+}
+
+async function ensureBucket() {
+  // Test if bucket exists
+  const { data: bData, error: bErr } = await supabase.storage.getBucket(BUCKET_NAME);
+  if (!bErr && bData) {
+    return { ok: true };
+  }
+
+  // If bucket not found, try to create it
+  console.log(`Bucket '${BUCKET_NAME}' does not exist yet in project '${PROJECT_REF}'. Attempting creation...`);
+  const { data: cData, error: cErr } = await supabase.storage.createBucket(BUCKET_NAME, {
+    public: true,
+    fileSizeLimit: 52428800
+  });
+
+  if (!cErr) {
+    console.log(`✅ Bucket '${BUCKET_NAME}' created successfully!`);
+    return { ok: true };
+  } else {
+    return { ok: false, error: cErr.message || (bErr && bErr.message) };
   }
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  const previewOnly = args.includes('--preview') || args.includes('--home-preview');
-  const concurrency = 5;
+  const homeOnly = args.includes('--home-preview') || args.includes('--home-only') || args.includes('--preview');
+  const concurrency = 6;
 
-  console.log('='.repeat(65));
-  console.log(`🖼️  Walkaroo Supabase Image Sync Tool`);
-  console.log(`Target Bucket: ${BUCKET_NAME}`);
+  console.log('='.repeat(68));
+  console.log(`🖼️   Walkaroo Supabase Storage Image Sync Tool`);
+  console.log(`Project Ref:   ${PROJECT_REF}`);
   console.log(`Supabase URL:  ${SUPABASE_URL}`);
-  console.log(`Mode:          ${previewOnly ? 'Home Preview Images Only' : 'Priority Preview + Full Sync'}`);
-  console.log('='.repeat(65));
+  console.log(`Target Bucket: ${BUCKET_NAME}`);
+  console.log(`Upload Mode:   ${homeOnly ? 'Home Page Preview Images Only' : 'Home Page First, then All Other Webpages'}`);
+  console.log('='.repeat(68));
 
-  // 1. Verify bucket existence
-  const { data: buckets, error: bErr } = await supabase.storage.listBuckets();
-  if (bErr || !buckets) {
-    console.log('\n❌ Unable to list buckets:', bErr?.message);
-    console.log('Ensure you have run `supabase/storage.sql` or `supabase/schema.sql` in your Supabase SQL Editor:');
-    console.log('👉 https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs/sql/new\n');
+  // 1. Check or create bucket
+  const bucketCheck = await ensureBucket();
+  if (!bucketCheck.ok) {
+    console.log(`\n❌ Supabase Storage Bucket '${BUCKET_NAME}' is not ready:`);
+    console.log(`   ${bucketCheck.error}\n`);
+    console.log(`👉 To initialize the bucket and enable public storage uploads:`);
+    console.log(`   1. Open the Supabase SQL Editor:`);
+    console.log(`      https://supabase.com/dashboard/project/${PROJECT_REF}/sql/new`);
+    console.log(`   2. Copy & paste the contents of: supabase/storage.sql`);
+    console.log(`   3. Click "RUN" to create 'walkaroo-assets' with public upload/view policies.`);
+    console.log(`   (Or add SUPABASE_SERVICE_ROLE_KEY to your .env file)\n`);
+    process.exit(1);
   }
 
-  const targetExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
+  // 2. Discover local images
+  const targetExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.ico'];
   const allImages = [
     ...getFilesRecursively(path.join(walkarooDir, 'cdn'), targetExts),
     ...getFilesRecursively(externalDir, targetExts)
   ];
 
-  console.log(`Found ${allImages.length} total local images.`);
+  console.log(`\n📁 Discovered ${allImages.length} total local store assets.`);
 
   const homeImageNames = getHomePageImages();
-  console.log(`Identified ${homeImageNames.size} distinct image references on Home Page.`);
+  console.log(`🎯 Identified ${homeImageNames.size} distinct image references on Home Page.`);
 
-  // Prioritize home page images first
-  const priorityList = [];
-  const secondaryList = [];
+  // 3. Separate priority home images and secondary images
+  const homeImages = [];
+  const secondaryImages = [];
 
   for (const imgPath of allImages) {
     const base = path.basename(imgPath).toLowerCase();
     if (homeImageNames.has(base)) {
-      priorityList.push(imgPath);
+      homeImages.push(imgPath);
     } else {
-      secondaryList.push(imgPath);
+      secondaryImages.push(imgPath);
     }
   }
 
-  console.log(`\nPriority Home Preview Images: ${priorityList.length}`);
-  console.log(`Catalog / Secondary Images:   ${secondaryList.length}\n`);
+  console.log(`\n🔹 Priority 1 (Home Page Images):   ${homeImages.length}`);
+  console.log(`🔹 Priority 2 (Other Webpage Images): ${secondaryImages.length}\n`);
 
-  const queue = previewOnly ? priorityList : [...priorityList, ...secondaryList];
-  let completed = 0;
-  let failed = 0;
+  async function processQueue(items, label) {
+    let completed = 0;
+    let failed = 0;
+    let skipped = 0;
+    let index = 0;
 
-  console.log(`Starting upload queue of ${queue.length} images...`);
+    async function worker() {
+      while (index < items.length) {
+        const curIndex = index++;
+        const fpath = items[curIndex];
+        let remoteKey = fpath.replace(walkarooDir + '/', '').replace(rootDir + '/', '');
+        remoteKey = remoteKey.replace(/^\/+/, '');
 
-  // Simple concurrency worker pool
-  let index = 0;
-  async function worker() {
-    while (index < queue.length) {
-      const curIndex = index++;
-      const fpath = queue[curIndex];
-      // Normalize remote key
-      let remoteKey = fpath.replace(walkarooDir + '/', '').replace(rootDir + '/', '');
-      remoteKey = remoteKey.replace(/^\/+/, '');
+        const res = await uploadFile(fpath, remoteKey);
+        if (res.success) {
+          completed++;
+        } else {
+          failed++;
+        }
 
-      const res = await uploadFile(fpath, remoteKey);
-      if (res.success) {
-        completed++;
-      } else {
-        failed++;
-        // If RLS blocked, stop early with helpful guidance
-        if (res.error && res.error.includes('row-level security')) {
-          console.log(`\n⚠️  Supabase Storage RLS policy must be initialized!`);
-          console.log(`Run 'supabase/storage.sql' in your Supabase SQL editor:`);
-          console.log(`👉 https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs/sql/new\n`);
-          process.exit(0);
+        if ((completed + failed) % 15 === 0 || (completed + failed) === items.length) {
+          const pct = Math.round(((completed + failed) / items.length) * 100);
+          process.stdout.write(`   [${label}] ${pct}% (${completed + failed}/${items.length}) - Success: ${completed}, Failed: ${failed}\r`);
         }
       }
-
-      if (completed % 10 === 0 || completed === queue.length) {
-        process.stdout.write(`Progress: ${completed + failed}/${queue.length} (Success: ${completed}, Failed: ${failed})\r`);
-      }
     }
+
+    const workers = Array.from({ length: concurrency }, () => worker());
+    await Promise.all(workers);
+    console.log(`\n   ✅ ${label} finished: ${completed} uploaded, ${failed} failed.`);
   }
 
-  const workers = Array.from({ length: concurrency }, () => worker());
-  await Promise.all(workers);
+  // Upload Home page images first
+  console.log(`🚀 Step 1: Uploading Home Page images to bucket...`);
+  await processQueue(homeImages, 'Home Page');
 
-  console.log(`\n✅ Upload finished! ${completed} uploaded, ${failed} failed.`);
+  if (!homeOnly && secondaryImages.length > 0) {
+    console.log(`\n🚀 Step 2: Uploading remaining images for other webpages...`);
+    await processQueue(secondaryImages, 'Other Pages');
+  }
+
+  console.log('\n🎉 All uploads finished!');
+  console.log(`Public CDN assets are now live in '${BUCKET_NAME}' at:`);
+  console.log(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/<image_path>\n`);
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error('\nFatal error during image upload:', err);
+  process.exit(1);
+});

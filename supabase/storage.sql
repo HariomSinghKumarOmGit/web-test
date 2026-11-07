@@ -1,6 +1,6 @@
 -- ====================================================================
 -- Walkaroo Supabase Storage Setup: 'walkaroo-assets'
--- Project: https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs
+-- Project: https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau
 -- ====================================================================
 
 -- 1. Create the public storage bucket for Walkaroo images & assets

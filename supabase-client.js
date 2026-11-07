@@ -1,18 +1,20 @@
 /**
- * Walkaroo E-Commerce Supabase Client Integration
- * - Database queries (Products, Collections, Blogs, Orders, Newsletter, Cart)
- * - Safe, non-blocking asset delivery (uses local mirrors with zero glitching)
- * - Automatic preloader / buffer dismiss failsafe
+ * Walkaroo E-Commerce Supabase Client & Smart Page-Aware Image Integration
+ * - Supabase Project: https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau
+ * - Home Page Preview Optimizer: Loads only visible viewport preview images on homepage first
+ * - Other Webpages: Dynamically loads respective page images on-demand when visited
+ * - Bulletproof Supabase Storage CDN retraction with 100% loop-free local fallback
+ * - Automatic preloader / buffering dismiss failsafe
  */
 (function(window) {
   'use strict';
 
   const SUPABASE_CONFIG = {
-    url: 'https://ofgaqwoslqeaxwhpcjqs.supabase.co',
-    anonKey: 'sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-',
-    projectRef: 'ofgaqwoslqeaxwhpcjqs',
+    url: 'https://zalicyoqqrfdhcsfhpau.supabase.co',
+    anonKey: 'sb_publishable_FRs_pS0TJUWAaJl7FjOE-w_2Lv8ob66',
+    projectRef: 'zalicyoqqrfdhcsfhpau',
     bucket: 'walkaroo-assets',
-    useStorageCdn: false // Keep false to use fast reliable local/CDN assets without 404 buffers
+    useStorageCdn: true // Enables Supabase Storage CDN with automatic local fallback
   };
 
   let client = null;
@@ -36,7 +38,7 @@
     return sid;
   }
 
-  // Convert local/CDN path to Supabase Storage public CDN URL (if enabled)
+  // Convert local/CDN path to Supabase Storage public CDN URL
   function getSupabaseImageUrl(originalUrl) {
     if (!originalUrl) return '';
     let clean = originalUrl;
@@ -46,6 +48,10 @@
       } else {
         return originalUrl;
       }
+    } else if (clean.startsWith('//www.walkaroo.in/')) {
+      clean = clean.replace(/^\/\/www\.walkaroo\.in\//, '');
+    } else if (clean.startsWith('//')) {
+      clean = clean.replace(/^\/\//, '');
     }
     clean = clean.split('?')[0].replace(/^\/+/, '');
     return `${SUPABASE_CONFIG.url}/storage/v1/object/public/${SUPABASE_CONFIG.bucket}/${clean}`;
@@ -168,58 +174,139 @@
     }
   };
 
+  // Safe image error fallback (strictly prevents infinite loops)
+  function attachSafeFallback(img, originalSrc) {
+    if (img.getAttribute('data-sb-handled')) return;
+    img.setAttribute('data-sb-handled', 'true');
+
+    img.onerror = function() {
+      // Disarm error handler immediately to prevent infinite retry loops
+      this.onerror = null;
+      if (originalSrc && this.src !== originalSrc) {
+        this.src = originalSrc;
+      }
+    };
+  }
+
+  /**
+   * Smart Page-Aware Image Loading:
+   * - Homepage: Only initial viewport / hero preview images load first; below-the-fold is deferred
+   * - Other Webpages: Automatically loads images relevant to that page as user navigates
+   */
+  function initPageAwareImageLoading() {
+    const pathname = window.location.pathname.toLowerCase();
+    const isHomePage = pathname === '/' ||
+                       pathname === '' ||
+                       pathname.endsWith('/index.html') ||
+                       pathname.endsWith('/www.walkaroo.in/') ||
+                       pathname.endsWith('/www.walkaroo.in/index.html');
+
+    const viewportHeight = window.innerHeight || 850;
+    const images = Array.from(document.querySelectorAll('img'));
+
+    // IntersectionObserver for lazy-loading images when nearing view
+    let imageObserver = null;
+    if ('IntersectionObserver' in window) {
+      imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            const targetSrc = img.getAttribute('data-src') || img.getAttribute('data-original-src');
+            if (targetSrc) {
+              const supabaseUrl = getSupabaseImageUrl(targetSrc);
+              attachSafeFallback(img, targetSrc);
+              img.src = (SUPABASE_CONFIG.useStorageCdn && supabaseUrl) ? supabaseUrl : targetSrc;
+              img.removeAttribute('data-src');
+            }
+            observer.unobserve(img);
+          }
+        });
+      }, {
+        rootMargin: '300px 0px', // Pre-load slightly before scrolling into view
+        threshold: 0.01
+      });
+    }
+
+    images.forEach(img => {
+      const currentSrc = img.getAttribute('src');
+      if (!currentSrc || currentSrc.startsWith('data:image/svg+xml') || currentSrc.startsWith('data:image/gif')) {
+        return;
+      }
+
+      // Check position relative to viewport
+      const rect = img.getBoundingClientRect();
+      const isVisibleInInitialViewport = (rect.top >= -50 && rect.top <= (viewportHeight * 1.1)) && (rect.height > 0 || rect.width > 0);
+
+      if (isHomePage) {
+        // HOME PAGE MODE:
+        // Priority images in the top viewport load immediately
+        // Below-the-fold or hidden carousel images are deferred until the user scrolls!
+        if (!isVisibleInInitialViewport && imageObserver && rect.top > viewportHeight) {
+          img.setAttribute('data-original-src', currentSrc);
+          img.setAttribute('data-src', currentSrc);
+          img.setAttribute('loading', 'lazy');
+          img.setAttribute('decoding', 'async');
+          // Lightweight transparent placeholder SVG
+          img.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22100%22 height%3D%22100%22 viewBox%3D%220 0 100 100%22%3E%3Crect width%3D%22100%22 height%3D%22100%22 fill%3D%22%23f3f3f3%22%2F%3E%3C%2Fsvg%3E';
+          imageObserver.observe(img);
+        } else {
+          // Visible viewport image: load smoothly with Supabase CDN & fallback
+          img.setAttribute('decoding', 'async');
+          const supabaseUrl = getSupabaseImageUrl(currentSrc);
+          attachSafeFallback(img, currentSrc);
+          if (SUPABASE_CONFIG.useStorageCdn && supabaseUrl) {
+            img.src = supabaseUrl;
+          }
+        }
+      } else {
+        // OTHER WEBPAGES (Products, Collections, Blogs, Cart, etc.):
+        // Load this page's images on-demand with async decoding and CDN support
+        img.setAttribute('decoding', 'async');
+        const supabaseUrl = getSupabaseImageUrl(currentSrc);
+        attachSafeFallback(img, currentSrc);
+        if (SUPABASE_CONFIG.useStorageCdn && supabaseUrl) {
+          img.src = supabaseUrl;
+        }
+      }
+    });
+
+    console.log(`⚡ Walkaroo Smart Asset Optimizer: Initialized (${isHomePage ? 'Home Page Preview Mode' : 'Webpage Dynamic Mode'})`);
+  }
+
   // Preloader / Loading Bar Failsafe:
-  // Ensure the page loading spinner smoothly disappears and never stays stuck buffering
+  // Smoothly hides any stuck loading animation without delay
   function dismissPreloader() {
     const bars = document.querySelectorAll('loading-bar, .loading-bar');
     bars.forEach(bar => {
-      bar.style.transition = 'opacity 0.3s ease';
+      bar.style.transition = 'opacity 0.25s ease';
       bar.style.opacity = '0';
       bar.style.pointerEvents = 'none';
       setTimeout(() => {
         bar.hidden = true;
         if (bar.parentNode) bar.parentNode.removeChild(bar);
-      }, 350);
+      }, 300);
     });
     document.body.classList.add('loaded');
-  }
-
-  // Safe image error handler preventing infinite loops
-  function setupImageSafeFallback() {
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
-      if (!img.getAttribute('data-err-handled')) {
-        img.setAttribute('data-err-handled', 'true');
-        const originalError = img.onerror;
-        img.onerror = function() {
-          this.onerror = null; // Prevent infinite error recursion
-          if (typeof originalError === 'function') {
-            try { originalError.call(this); } catch(e) {}
-          }
-        };
-      }
-    });
   }
 
   // Attach to window
   window.WalkarooSupabase = WalkarooSupabase;
 
-  // Auto-bind when DOM is ready
+  // Auto-initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       getClient();
-      setupImageSafeFallback();
-      setTimeout(dismissPreloader, 200);
+      initPageAwareImageLoading();
+      setTimeout(dismissPreloader, 150);
     });
   } else {
     getClient();
-    setupImageSafeFallback();
+    initPageAwareImageLoading();
     setTimeout(dismissPreloader, 100);
   }
 
   window.addEventListener('load', dismissPreloader);
-  // Hard safety timeout to guarantee spinner never stays stuck
-  setTimeout(dismissPreloader, 1500);
+  setTimeout(dismissPreloader, 1200);
 
   // Auto-listen to newsletter forms
   document.addEventListener('DOMContentLoaded', function() {

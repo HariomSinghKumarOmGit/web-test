@@ -1,10 +1,10 @@
 # Walkaroo Supabase Integration & SQL Documentation
 
 ## Project Information
-- **Supabase Project URL**: https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs
-- **API URL**: https://ofgaqwoslqeaxwhpcjqs.supabase.co
-- **Publishable / Anon API Key**: `sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-`
-- **Project Ref**: `ofgaqwoslqeaxwhpcjqs`
+- **Supabase Project URL**: https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau
+- **API URL**: https://zalicyoqqrfdhcsfhpau.supabase.co
+- **Publishable / Anon API Key**: `sb_publishable_FRs_pS0TJUWAaJl7FjOE-w_2Lv8ob66`
+- **Project Ref**: `zalicyoqqrfdhcsfhpau`
 - **Storage Bucket**: `walkaroo-assets`
 
 ---
@@ -14,7 +14,7 @@
 Because Supabase restricts DDL (`CREATE TABLE`, `storage.buckets`) to SQL Editor / Postgres direct connections:
 
 1. Open your Supabase SQL Editor:
-   👉 **[Supabase SQL Editor](https://supabase.com/dashboard/project/ofgaqwoslqeaxwhpcjqs/sql/new)**
+   👉 **[Supabase SQL Editor](https://supabase.com/dashboard/project/zalicyoqqrfdhcsfhpau/sql/new)**
 2. Open [`supabase/schema.sql`](./schema.sql) (or [`supabase/storage.sql`](./storage.sql) for storage only).
 3. Paste the SQL contents into the query box and click **RUN**.
 4. To populate the database with all 1,592 products, 264 collections, and 295 blog posts:
@@ -33,7 +33,7 @@ The storage bucket `walkaroo-assets` is configured in [`supabase/storage.sql`](.
 
 Public CDN URL format:
 ```
-https://ofgaqwoslqeaxwhpcjqs.supabase.co/storage/v1/object/public/walkaroo-assets/{image_path}
+https://zalicyoqqrfdhcsfhpau.supabase.co/storage/v1/object/public/walkaroo-assets/{image_path}
 ```
 
 ### 2. Home Page Preview & On-Demand Lazy Retraction

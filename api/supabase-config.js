@@ -7,9 +7,9 @@ export default function handler(req, res) {
     return res.status(204).end();
   }
 
-  const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ofgaqwoslqeaxwhpcjqs.supabase.co';
-  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-';
-  const SUPABASE_PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'ofgaqwoslqeaxwhpcjqs';
+  const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zalicyoqqrfdhcsfhpau.supabase.co';
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_FRs_pS0TJUWAaJl7FjOE-w_2Lv8ob66';
+  const SUPABASE_PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'zalicyoqqrfdhcsfhpau';
 
   return res.status(200).json({
     url: SUPABASE_URL,
