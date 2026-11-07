@@ -1,8 +1,8 @@
 /**
- * Walkaroo E-Commerce Supabase Client & Smart Image Retract Integration
- * - Retracts images on-demand from Supabase Storage CDN (walkaroo-assets)
- * - Home Page Preview Optimizer: Loads only visible viewport preview images first
- * - Defers below-the-fold images until the user actually visits/scrolls to that section
+ * Walkaroo E-Commerce Supabase Client Integration
+ * - Database queries (Products, Collections, Blogs, Orders, Newsletter, Cart)
+ * - Safe, non-blocking asset delivery (uses local mirrors with zero glitching)
+ * - Automatic preloader / buffer dismiss failsafe
  */
 (function(window) {
   'use strict';
@@ -12,7 +12,7 @@
     anonKey: 'sb_publishable_BBz18QCYvDjMyfXoh5nP5g_lbMxzVO-',
     projectRef: 'ofgaqwoslqeaxwhpcjqs',
     bucket: 'walkaroo-assets',
-    useStorageCdn: true
+    useStorageCdn: false // Keep false to use fast reliable local/CDN assets without 404 buffers
   };
 
   let client = null;
@@ -36,7 +36,7 @@
     return sid;
   }
 
-  // Convert local/CDN path to Supabase Storage public CDN URL
+  // Convert local/CDN path to Supabase Storage public CDN URL (if enabled)
   function getSupabaseImageUrl(originalUrl) {
     if (!originalUrl) return '';
     let clean = originalUrl;
@@ -47,7 +47,6 @@
         return originalUrl;
       }
     }
-    // Remove query params (v=..., width=...) and leading slashes for Supabase storage key
     clean = clean.split('?')[0].replace(/^\/+/, '');
     return `${SUPABASE_CONFIG.url}/storage/v1/object/public/${SUPABASE_CONFIG.bucket}/${clean}`;
   }
@@ -169,81 +168,37 @@
     }
   };
 
-  // Smart On-Demand Image Retract & Home Page Preview Optimizer
-  function initSmartImageLoading() {
-    const isHomePage = window.location.pathname === '/' ||
-                       window.location.pathname.endsWith('/index.html') ||
-                       window.location.pathname.endsWith('/www.walkaroo.in/');
+  // Preloader / Loading Bar Failsafe:
+  // Ensure the page loading spinner smoothly disappears and never stays stuck buffering
+  function dismissPreloader() {
+    const bars = document.querySelectorAll('loading-bar, .loading-bar');
+    bars.forEach(bar => {
+      bar.style.transition = 'opacity 0.3s ease';
+      bar.style.opacity = '0';
+      bar.style.pointerEvents = 'none';
+      setTimeout(() => {
+        bar.hidden = true;
+        if (bar.parentNode) bar.parentNode.removeChild(bar);
+      }, 350);
+    });
+    document.body.classList.add('loaded');
+  }
 
-    const viewportHeight = window.innerHeight || 800;
-    const images = Array.from(document.querySelectorAll('img'));
-
-    // IntersectionObserver for retracting images only when user scrolls to that part
-    let imageObserver = null;
-    if ('IntersectionObserver' in window) {
-      imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const img = entry.target;
-            const targetUrl = img.getAttribute('data-sb-src') || img.getAttribute('data-original-src');
-            if (targetUrl) {
-              // Try retracting from Supabase Storage first, fallback to original if unavailable
-              const supabaseUrl = getSupabaseImageUrl(targetUrl);
-              const fallbackUrl = img.getAttribute('data-original-src') || targetUrl;
-
-              img.onerror = function() {
-                // If Supabase CDN object not found yet, gracefully load original local mirror
-                if (img.src !== fallbackUrl) {
-                  img.src = fallbackUrl;
-                }
-              };
-
-              img.src = SUPABASE_CONFIG.useStorageCdn ? supabaseUrl : fallbackUrl;
-              img.removeAttribute('data-sb-src');
-            }
-            observer.unobserve(img);
-          }
-        });
-      }, {
-        rootMargin: '250px 0px', // Pre-fetch slightly before coming into view
-        threshold: 0.01
-      });
-    }
-
+  // Safe image error handler preventing infinite loops
+  function setupImageSafeFallback() {
+    const images = document.querySelectorAll('img');
     images.forEach(img => {
-      const currentSrc = img.getAttribute('src');
-      if (!currentSrc || currentSrc.startsWith('data:image/svg+xml')) return;
-
-      const rect = img.getBoundingClientRect();
-      const isAboveTheFold = rect.top >= 0 && rect.top <= (viewportHeight * 1.2);
-
-      // On Home Page: preview images above the fold load immediately
-      // Below the fold images are deferred until the user visits/scrolls down!
-      if (isHomePage && !isAboveTheFold && imageObserver) {
-        img.setAttribute('data-original-src', currentSrc);
-        img.setAttribute('data-sb-src', currentSrc);
-        img.setAttribute('loading', 'lazy');
-        img.setAttribute('decoding', 'async');
-        // Low-overhead placeholder while waiting for user scroll
-        img.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22100%22 height%3D%22100%22 viewBox%3D%220 0 100 100%22%3E%3Crect width%3D%22100%22 height%3D%22100%22 fill%3D%22%23f2f2f2%22%2F%3E%3C%2Fsvg%3E';
-        imageObserver.observe(img);
-      } else {
-        // Immediate preview image: enable async decoding & Supabase fallback
-        img.setAttribute('decoding', 'async');
-        const original = currentSrc;
-        const supabaseUrl = getSupabaseImageUrl(original);
-        if (SUPABASE_CONFIG.useStorageCdn) {
-          img.onerror = function() {
-            if (img.src !== original) {
-              img.src = original;
-            }
-          };
-          img.src = supabaseUrl;
-        }
+      if (!img.getAttribute('data-err-handled')) {
+        img.setAttribute('data-err-handled', 'true');
+        const originalError = img.onerror;
+        img.onerror = function() {
+          this.onerror = null; // Prevent infinite error recursion
+          if (typeof originalError === 'function') {
+            try { originalError.call(this); } catch(e) {}
+          }
+        };
       }
     });
-
-    console.log(`⚡ Walkaroo Smart Asset Optimizer: Managed ${images.length} images (Home Page Preview Mode: ${isHomePage})`);
   }
 
   // Attach to window
@@ -253,12 +208,18 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       getClient();
-      initSmartImageLoading();
+      setupImageSafeFallback();
+      setTimeout(dismissPreloader, 200);
     });
   } else {
     getClient();
-    initSmartImageLoading();
+    setupImageSafeFallback();
+    setTimeout(dismissPreloader, 100);
   }
+
+  window.addEventListener('load', dismissPreloader);
+  // Hard safety timeout to guarantee spinner never stays stuck
+  setTimeout(dismissPreloader, 1500);
 
   // Auto-listen to newsletter forms
   document.addEventListener('DOMContentLoaded', function() {

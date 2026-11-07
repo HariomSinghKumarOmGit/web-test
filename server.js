@@ -212,9 +212,13 @@ function loadLocalJson(filename) {
 
 const server = http.createServer(async (req, res) => {
   // CORS & Security Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
   res.setHeader('Access-Control-Allow-Headers', '*');
+  if (req.headers.origin) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -224,6 +228,23 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
+
+  // Exit interstitial url redirector
+  if (pathname === '/url') {
+    const targetQ = parsedUrl.searchParams.get('q');
+    if (targetQ) {
+      res.writeHead(302, { 'Location': targetQ });
+      res.end();
+      return;
+    }
+  }
+
+  // GraphQL Mock
+  if (pathname.includes('/api/unstable/graphql') || pathname.includes('/graphql')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: {} }));
+    return;
+  }
 
   // Serve client script
   if (pathname === '/supabase-client.js' || pathname === '/www.walkaroo.in/supabase-client.js') {
@@ -395,7 +416,9 @@ const server = http.createServer(async (req, res) => {
 
   // 1. Smart asset matching for images & media
   const ext = path.extname(cleanPath).toLowerCase();
-  const isImageOrMedia = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.woff', '.woff2'].includes(ext);
+  const isImage = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.ico', '.svg'].includes(ext);
+  const isFont = ['.woff', '.woff2', '.ttf', '.otf', '.eot'].includes(ext);
+  const isImageOrMedia = isImage || isFont;
 
   if (isImageOrMedia) {
     if (process.env.SERVE_FROM_SUPABASE_STORAGE === 'true') {
@@ -489,8 +512,8 @@ const server = http.createServer(async (req, res) => {
       fs.createReadStream(foundFile).pipe(res);
     }
   } else {
-    // If an image was requested but truly missing, deliver a clean 1x1 transparent PNG
-    if (isImageOrMedia) {
+    // If an image was requested but truly missing, deliver a clean 1x1 transparent PNG (only for image formats, NOT fonts)
+    if (isImage && ext !== '.svg') {
       const transparent1x1Png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
       res.writeHead(200, {
         'Content-Type': 'image/png',
