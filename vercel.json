@@ -1,21 +1,68 @@
 {
   "version": 2,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS, HEAD" },
+        { "key": "Access-Control-Allow-Headers", "value": "*" }
+      ]
+    },
+    {
+      "source": "/cdn/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/_external/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/", "destination": "/www.walkaroo.in/index.html" },
+    { "source": "/api/collect", "destination": "/api/collect" },
+    { "source": "/api/supabase-config", "destination": "/api/supabase-config" },
+    { "source": "/api/supabase/products", "destination": "/api/supabase/products" },
+    { "source": "/api/supabase/collections", "destination": "/api/supabase/collections" },
+    { "source": "/api/supabase/newsletter", "destination": "/api/supabase/newsletter" },
+    { "source": "/api/supabase/order", "destination": "/api/supabase/order" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/cart.js", "destination": "/api/cart" },
+    { "source": "/cart.json", "destination": "/api/cart" },
+    { "source": "/cart/(.*)", "destination": "/api/cart?action=$1" },
+    { "source": "/.well-known/(.*)", "destination": "/api/collect" },
+    { "source": "/monorail(.*)", "destination": "/api/collect" },
     { "source": "/_external/(.*)", "destination": "/_external/$1" },
     { "source": "/cdn/(.*)", "destination": "/www.walkaroo.in/cdn/$1" },
     { "source": "/checkouts/(.*)", "destination": "/www.walkaroo.in/checkouts/$1" },
-    { "source": "/collections/(.*)", "destination": "/www.walkaroo.in/collections/$1" },
-    { "source": "/products/(.*)", "destination": "/www.walkaroo.in/products/$1" },
-    { "source": "/blogs/(.*)", "destination": "/www.walkaroo.in/blogs/$1" },
-    { "source": "/pages/(.*)", "destination": "/www.walkaroo.in/pages/$1" },
-    { "source": "/policies/(.*)", "destination": "/www.walkaroo.in/policies/$1" },
+    { "source": "/collections/:slug.html", "destination": "/www.walkaroo.in/collections/:slug.html" },
+    { "source": "/collections/:slug", "destination": "/www.walkaroo.in/collections/:slug.html" },
+    { "source": "/products/:slug.html", "destination": "/www.walkaroo.in/products/:slug.html" },
+    { "source": "/products/:slug", "destination": "/www.walkaroo.in/products/:slug.html" },
+    { "source": "/blogs/all/:slug.html", "destination": "/www.walkaroo.in/blogs/all/:slug.html" },
+    { "source": "/blogs/all/:slug", "destination": "/www.walkaroo.in/blogs/all/:slug.html" },
+    { "source": "/blogs/:slug.html", "destination": "/www.walkaroo.in/blogs/:slug.html" },
+    { "source": "/blogs/:slug", "destination": "/www.walkaroo.in/blogs/:slug.html" },
+    { "source": "/pages/:slug.html", "destination": "/www.walkaroo.in/pages/:slug.html" },
+    { "source": "/pages/:slug", "destination": "/www.walkaroo.in/pages/:slug.html" },
+    { "source": "/policies/:slug.html", "destination": "/www.walkaroo.in/policies/:slug.html" },
+    { "source": "/policies/:slug", "destination": "/www.walkaroo.in/policies/:slug.html" },
     { "source": "/cart", "destination": "/www.walkaroo.in/cart.html" },
     { "source": "/women", "destination": "/www.walkaroo.in/women.html" },
     { "source": "/kids", "destination": "/www.walkaroo.in/kids.html" },
     { "source": "/returns", "destination": "/www.walkaroo.in/returns.html" },
     { "source": "/search", "destination": "/www.walkaroo.in/search.html" },
     { "source": "/track-order", "destination": "/www.walkaroo.in/track-order.html" },
+    { "source": "/mens-gym-shoes", "destination": "/www.walkaroo.in/mens-gym-shoes.html" },
+    { "source": "/mens-shoes-under-1000", "destination": "/www.walkaroo.in/mens-shoes-under-1000.html" },
+    { "source": "/mens-shoes-under-1500", "destination": "/www.walkaroo.in/mens-shoes-under-1500.html" },
+    { "source": "/mens-walking-shoes", "destination": "/www.walkaroo.in/mens-walking-shoes.html" },
+    { "source": "/supabase-client.js", "destination": "/supabase-client.js" },
+    { "source": "/", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/www.walkaroo.in/$1" }
   ]
 }
