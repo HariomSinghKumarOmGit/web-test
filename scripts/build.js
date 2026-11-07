@@ -52,4 +52,15 @@ if (fs.existsSync(sourceIndex)) {
   console.log('Synced root index.html with storefront homepage.');
 }
 
+// Ensure www.walkaroo.in/_external is populated from root _external without symlinks
+const srcExternal = path.join(rootDir, '_external');
+const destExternal = path.join(walkarooDir, '_external');
+if (fs.existsSync(srcExternal)) {
+  if (fs.existsSync(destExternal) && fs.lstatSync(destExternal).isSymbolicLink()) {
+    fs.unlinkSync(destExternal);
+  }
+  fs.cpSync(srcExternal, destExternal, { recursive: true });
+  console.log('Synced _external directory into www.walkaroo.in/_external');
+}
+
 console.log('Vercel build preparation completed successfully!');
