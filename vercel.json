@@ -24,6 +24,9 @@
     }
   ],
   "rewrites": [
+    { "source": "/url", "destination": "/api/url" },
+    { "source": "/api/unstable/graphql", "destination": "/api/graphql" },
+    { "source": "/graphql", "destination": "/api/graphql" },
     { "source": "/api/collect", "destination": "/api/collect" },
     { "source": "/api/supabase-config", "destination": "/api/supabase-config" },
     { "source": "/api/supabase/products", "destination": "/api/supabase/products" },

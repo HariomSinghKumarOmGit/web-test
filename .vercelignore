@@ -1,0 +1,6 @@
+.git
+.DS_Store
+supabase/*.sql
+scripts/extract_data.py
+scripts/generate_sql.py
+*.py
